@@ -71,7 +71,7 @@ func Register(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set(extensionNameHeader, "extension")
+	req.Header.Set(extensionNameHeader, "sst")
 
 	res, err := client.Do(req)
 	if err != nil {

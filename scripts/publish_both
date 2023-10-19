@@ -1,0 +1,2 @@
+GOARCH=amd64 ./scripts/publish
+GOARCH=arm64 ./scripts/publish

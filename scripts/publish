@@ -1,0 +1,58 @@
+#!/bin/bash
+set -u
+
+echo "building for $GOARCH"
+
+export AWS_PAGER=""
+
+rm -rf dist
+CGO_ENABLED=0 GOOS=linux go build -o ./dist/extensions/sst main.go
+chmod +x ./dist/extensions/sst
+cd dist/
+zip -r layer.zip extensions
+cd ../
+
+# Get the list of AWS regions
+REGIONS=$(aws ec2 describe-regions --output text --query "Regions[*].RegionName")
+
+upload_layer() {
+  echo "$region: started"
+  local region=$1
+  output=$(aws lambda publish-layer-version \
+    --region $region \
+    --layer-name sst-extension-$GOARCH \
+    --description "SST Lambda Extension" \
+    --compatible-runtimes nodejs18.x \
+    --zip-file "fileb://$(pwd)/dist/layer.zip"
+  )
+
+  if [[ $? -eq 0 ]]; then
+    # Extract the version number from the output
+    version_number=$(echo "$output" | grep -oP '"Version": \K[0-9]+')
+    
+    if [[ -n "$version_number" ]]; then
+      # Replace "123456789012" with the AWS account ID you want to share with
+      aws lambda add-layer-version-permission \
+        --region $region \
+        --layer-name sst-extension-$GOARCH \
+        --version-number $version_number \
+        --principal "*" \
+        --statement-id share-access \
+        --action lambda:GetLayerVersion
+    else
+      echo "failed to extract version number from publish output."
+    fi
+  else
+    echo "failed to publish Lambda layer."
+  fi
+  echo "$region: done"
+}
+
+for region in $REGIONS; do
+  upload_layer "$region" &
+done
+
+
+wait
+
+echo "Lambda layer uploaded to all regions."

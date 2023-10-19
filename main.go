@@ -92,12 +92,14 @@ func main() {
 					case server.FunctionEvent:
 						matches := pattern.FindStringSubmatch(string(v))
 						if len(matches) > 1 {
+							log.Println("found matches", matches)
 							var action Action
 							err := json.Unmarshal([]byte(matches[1]), &action)
 							if err != nil {
 								continue
 							}
 
+							log.Println("action", action.Action)
 							if action.Action != "log.split" {
 								continue
 							}
@@ -109,6 +111,7 @@ func main() {
 							}
 
 							logGroupName = logSplitAction.LogGroupName
+							log.Println("logGroupName", logGroupName)
 
 							continue
 						}
@@ -137,10 +140,16 @@ func main() {
 									_, err = client.CreateLogGroup(context.Background(), &cloudwatchlogs.CreateLogGroupInput{
 										LogGroupName: aws.String(logGroupName),
 									})
+									if err != nil {
+										log.Println(err)
+									}
 									_, err = client.CreateLogStream(context.Background(), &cloudwatchlogs.CreateLogStreamInput{
 										LogGroupName:  aws.String(logGroupName),
 										LogStreamName: aws.String(streamName),
 									})
+									if err != nil {
+										log.Println(err)
+									}
 									continue
 								}
 							}
